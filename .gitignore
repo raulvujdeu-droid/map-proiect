@@ -1,0 +1,10 @@
+# Artefacte de build si dependente. Repository-ul contine sursele, nu rezultatele.
+build/
+*.o
+*.out
+coverage/
+
+# Secrete. Nu comiteti niciodata credentiale.
+.env
+*.pem
+*.key

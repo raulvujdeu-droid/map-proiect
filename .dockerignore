@@ -1,0 +1,11 @@
+.git
+.github
+.gitignore
+README.md
+docs/
+tests/
+coverage/
+build/
+Dockerfile
+.dockerignore
+map.json
