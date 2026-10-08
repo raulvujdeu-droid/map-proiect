@@ -27,7 +27,7 @@ docker run -d -p 8080:8080 map-proiect
 Aplicatia asculta pe portul 8080. Verificati:
 
 ```
-curl http://localhost:8080/health
+curl http://localhost:8080/health 
 curl http://localhost:8080/version
 ```
 
