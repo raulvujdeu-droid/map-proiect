@@ -6,7 +6,7 @@ Proiect individual la disciplina Metode avansate de programare, anul universitar
 
 - **Nume:** Vujdeu Raul
 - **Grupa:** 2.2
-- **Marca:** 123456
+- **Marca:** LH715722
 - **Tema:** 2 - Listă de sarcini cu priorități
 
 ## Descriere
