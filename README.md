@@ -1,3 +1,5 @@
+[![CI](https://github.com/raulvujdeu-droid/map-proiect/actions/workflows/ci.yml/badge.svg)](https://github.com/raulvujdeu-droid/map-proiect/actions/workflows/ci.yml)
+
 # Tema 2 - Lista de sarcini cu prioritati
 
 Proiect individual la disciplina Metode avansate de programare, anul universitar 2026-2027.
