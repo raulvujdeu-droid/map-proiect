@@ -1,4 +1,4 @@
-[![CI](https://github.com/raulvujdeu-droid/map-proiect/actions/workflows/ci.yml/badge.svg)](https://github.com/raulvujdeu-droid/map-proiect/actions/workflows/ci.yml)
+![CI](https://github.com/raulvujdeu-droid/map-proiect/actions/workflows/ci.yml/badge.svg?branch=main)
 
 # Tema 2 - Lista de sarcini cu prioritati
 
