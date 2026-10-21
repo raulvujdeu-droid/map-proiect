@@ -11,7 +11,7 @@ TEST_CASE("health body reports ok and uptime") {
     const auto started_at = std::chrono::steady_clock::now();
     const auto body = HealthBody(started_at);
 
-    CHECK(body["status"] == "not-ok");
+    CHECK(body["status"] == "ok");
     CHECK(body.contains("uptime_seconds"));
     CHECK(body["uptime_seconds"].get<long>() >= 0);
 }
