@@ -52,3 +52,6 @@ cmake --build build -j
 ## Decizii de implementare
 
 [Doua-trei decizii tehnice pe care le-ati luat si motivul fiecareia.]
+
+
+# Proiect MAP - Test CI
