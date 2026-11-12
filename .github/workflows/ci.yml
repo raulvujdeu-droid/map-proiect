@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y cmake lcov
-      - run: cmake -B build -DBUILD_TESTS=ON -DCMAKE_CXX_FLAGS="--coverage"
+      - run: cmake -B build -DBUILD_TESTS=ON -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
       - run: cmake --build build -j && ./build/tests
       - run: mkdir -p coverage && lcov -c -d build -o coverage/coverage.info
       - name: Upload coverage report
