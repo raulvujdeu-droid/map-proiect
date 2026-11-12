@@ -2,13 +2,16 @@
 // Pure logic lives here so it can be unit tested without starting a server.
 #pragma once
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <mutex>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -104,12 +107,23 @@ struct Task {
     }
 };
 
+/// Result returned by Store operations so HTTP routes know the status code and JSON body.
+struct OperationResult {
+    int status_code = 200;
+    nlohmann::json body;
+};
+
+inline nlohmann::json ErrorBody(const std::string& code, const std::string& message) {
+    return {{"error", code}, {"message", message}};
+}
+
 /// Holds the application data in memory.
 /// Everything is lost when the container restarts.
 class Store {
 public:
     void Reset() {
         std::lock_guard<std::mutex> guard(mutex_);
+        tasks_.clear();
         next_id_ = 1;
     }
 
@@ -123,9 +137,141 @@ public:
         return next_id_++;
     }
 
+    /// Creates a new task if unfinished tasks count is below kMaxUnfinishedTasks (35).
+    OperationResult AddTask(const std::string& title, int priority, const std::string& due_date) {
+        std::lock_guard<std::mutex> guard(mutex_);
+
+        int unfinished_count = 0;
+        for (const auto& task : tasks_) {
+            if (!task.completed) {
+                unfinished_count++;
+            }
+        }
+
+        if (unfinished_count >= kMaxUnfinishedTasks) {
+            return {409, ErrorBody("conflict", "maximum number of unfinished tasks reached")};
+        }
+
+        Task new_task;
+        new_task.id = next_id_++;
+        new_task.title = title;
+        new_task.priority = priority;
+        new_task.due_date = due_date;
+        new_task.completed = false;
+
+        tasks_.push_back(new_task);
+        return {201, new_task.ToJson(CurrentDateUtc())};
+    }
+
+    /// Lists tasks filtered by optional parameters and sorted by priority desc, due_date asc, id asc.
+    nlohmann::json ListTasks(std::optional<int> priority_filter,
+                             std::optional<std::string> due_before_filter,
+                             std::optional<bool> completed_filter) {
+        std::lock_guard<std::mutex> guard(mutex_);
+
+        std::vector<Task> filtered;
+        for (const auto& task : tasks_) {
+            if (priority_filter.has_value() && task.priority != *priority_filter) {
+                continue;
+            }
+            if (due_before_filter.has_value() && !(task.due_date < *due_before_filter)) {
+                continue;
+            }
+            if (completed_filter.has_value() && task.completed != *completed_filter) {
+                continue;
+            }
+            filtered.push_back(task);
+        }
+
+        std::sort(filtered.begin(), filtered.end(), [](const Task& a, const Task& b) {
+            if (a.priority != b.priority) {
+                return a.priority > b.priority;  // 1. priority descending
+            }
+            if (a.due_date != b.due_date) {
+                return a.due_date < b.due_date;  // 2. due_date ascending
+            }
+            return a.id < b.id;                  // 3. id ascending
+        });
+
+        const std::string today = CurrentDateUtc();
+        nlohmann::json result = nlohmann::json::array();
+        for (const auto& task : filtered) {
+            result.push_back(task.ToJson(today));
+        }
+        return result;
+    }
+
+    /// Marks an existing task as completed (only once).
+    OperationResult MarkTaskDone(int id) {
+        std::lock_guard<std::mutex> guard(mutex_);
+
+        for (auto& task : tasks_) {
+            if (task.id == id) {
+                if (task.completed) {
+                    return {409, ErrorBody("conflict", "task is already completed")};
+                }
+                task.completed = true;
+                return {200, task.ToJson(CurrentDateUtc())};
+            }
+        }
+
+        return {404, ErrorBody("not_found", "task not found")};
+    }
+
+    /// Deletes a task by id. Returns 204 on success, 404 if missing.
+    OperationResult DeleteTask(int id) {
+        std::lock_guard<std::mutex> guard(mutex_);
+
+        for (size_t i = 0; i < tasks_.size(); ++i) {
+            if (tasks_[i].id == id) {
+                tasks_.erase(tasks_.begin() + static_cast<long>(i));
+                return {204, nullptr};
+            }
+        }
+
+        return {404, ErrorBody("not_found", "task not found")};
+    }
+
+    /// Computes global statistics across all tasks.
+    nlohmann::json GetStats() {
+        std::lock_guard<std::mutex> guard(mutex_);
+
+        const std::string today = CurrentDateUtc();
+        int total = static_cast<int>(tasks_.size());
+        int completed = 0;
+        int overdue = 0;
+        int by_priority[6] = {0, 0, 0, 0, 0, 0};
+
+        for (const auto& task : tasks_) {
+            if (task.completed) {
+                completed++;
+            }
+            if (task.IsOverdue(today)) {
+                overdue++;
+            }
+            if (task.priority >= 1 && task.priority <= 5) {
+                by_priority[task.priority]++;
+            }
+        }
+
+        return {
+            {"total", total},
+            {"completed", completed},
+            {"overdue", overdue},
+            {"by_priority", {
+                {"1", by_priority[1]},
+                {"2", by_priority[2]},
+                {"3", by_priority[3]},
+                {"4", by_priority[4]},
+                {"5", by_priority[5]},
+            }},
+        };
+    }
+
 private:
     std::mutex mutex_;
     int next_id_ = 1;
+    std::vector<Task> tasks_;
 };
 
 /// Seconds since the process started.
@@ -145,10 +291,6 @@ inline nlohmann::json VersionBody() {
         {"commit", Env("APP_COMMIT", "dev")},
         {"built_at", Env("APP_BUILT_AT", "unknown")},
     };
-}
-
-inline nlohmann::json ErrorBody(const std::string& code, const std::string& message) {
-    return {{"error", code}, {"message", message}};
 }
 
 inline std::string HomePage() {
